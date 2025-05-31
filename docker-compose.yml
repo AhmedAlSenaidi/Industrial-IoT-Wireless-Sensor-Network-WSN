@@ -1,0 +1,41 @@
+version: '3.9'
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "1883:1883"
+
+  influxdb:
+    image: influxdb:1.8
+    environment:
+      - INFLUXDB_DB=sensors
+      - INFLUXDB_USER=admin
+      - INFLUXDB_PASSWORD=admin123
+    ports:
+      - "8086:8086"
+    command: influxd run
+    healthcheck:
+      test: ["CMD", "influx", "-execute", "SHOW DATABASES"]
+      interval: 10s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:8.4.5
+    depends_on:
+      - influxdb
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-provisioning/datasources:/etc/grafana/provisioning/datasources
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/"]
+      interval: 5s
+      retries: 10
+
+networks:
+  default:
+    name: wsn-net
